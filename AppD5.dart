@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:mysql1/mysql1.dart';
-import 'package:collection/collection.dart';
+import 'package:collection/collection.dart'; // Import the collection package for firstWhereOrNull
+import 'dart:collection';
 
-class Student
-{
+class Student {
   int id;
   String name;
   String phone;
@@ -14,35 +14,43 @@ class Student
   String toString() {
     return 'ID: $id, Name: $name, Phone: $phone';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Student && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
-void main() async{
-  Future<void> addStudent(MySqlConnection conn, List<Student> students) async {
+void main() async {
+  Future<void> addStudent(MySqlConnection conn, HashSet<Student> students) async {
     print('Nhập tên sinh viên: ');
     String? name = stdin.readLineSync();
-    if(name == null || name.isEmpty) {
+    if (name == null || name.isEmpty) {
       print('Tên không đúng định dạng');
       return;
     }
     print('Nhập số điện thoại sinh viên: ');
     String? phone = stdin.readLineSync();
-    if(phone == null || phone.isEmpty) {
+    if (phone == null || phone.isEmpty) {
       print('SĐT không hợp lệ');
       return;
     }
 
-    var result = await conn.query('insert into student (name, phone)'
-        'values(?,?)',[name, phone]);
+    var result = await conn.query('INSERT INTO student (name, phone) VALUES (?, ?)', [name, phone]);
     var id = result.insertId;
-    if(id != null) {
+    if (id != null) {
       students.add(Student(id, name, phone));
       print('Sinh viên đã được thêm!');
     } else {
       print('Thêm lỗi!!!');
     }
+  }
 
-  };
-  Future<void> editStudent(MySqlConnection conn, List<Student> students) async {
+  Future<void> editStudent(MySqlConnection conn, HashSet<Student> students) async {
     print('Nhập ID sinh viên cần sửa: ');
     String? idInput = stdin.readLineSync();
     int? id = int.tryParse(idInput ?? '');
@@ -71,12 +79,13 @@ void main() async{
       return;
     }
 
-    await conn.query('update student set name = ?, phone = ? where id = ?', [name, phone, id]);
+    await conn.query('UPDATE student SET name = ?, phone = ? WHERE id = ?', [name, phone, id]);
     student.name = name;
     student.phone = phone;
     print('Sinh viên đã được sửa!');
   }
-  Future<void> deleteStudent(MySqlConnection conn, List<Student> students) async {
+
+  Future<void> deleteStudent(MySqlConnection conn, HashSet<Student> students) async {
     print('Nhập ID sinh viên cần xóa: ');
     String? idInput = stdin.readLineSync();
     int? id = int.tryParse(idInput ?? '');
@@ -91,76 +100,63 @@ void main() async{
       return;
     }
 
-    await conn.query('delete from student where id = ?', [id]);
+    await conn.query('DELETE FROM student WHERE id = ?', [id]);
     students.removeWhere((s) => s.id == id);
     print('Sinh viên đã được xóa!');
   }
 
-  Future<void> displayStudents(MySqlConnection conn, List<Student> students) async{
-    var results = await conn.query("Select id, name, phone from student");
+  Future<void> displayStudents(MySqlConnection conn, HashSet<Student> students) async {
+    var results = await conn.query("SELECT id, name, phone FROM student");
 
     students.clear();
 
-    for(var row in results){
-      students.add(Student(row['id'], row['name'],row ['phone']));
+    for (var row in results) {
+      students.add(Student(row['id'], row['name'], row['phone']));
     }
-    if(students.isEmpty){
+    if (students.isEmpty) {
       print('Danh sách sinh viên trống');
-    }else{
+    } else {
       print('Danh sách sinh viên là:');
-      for(var student in students){
+      for (var student in students) {
         print(student);
       }
     }
-  };
-
-
-
-
-
-
+  }
 
   final settings = ConnectionSettings(
-      host: 'localhost',
-      port: 3306,
-      user: 'root',
-      // password: ''
-      db: 'school'
+    host: 'localhost',
+    port: 3306,
+    user: 'root',
+    // password: ''
+    db: 'school',
   );
   final conn = await MySqlConnection.connect(settings);
-  // if(conn!= null) {
-  //   print('Ket noi thanh cong');
-  // }
 
-  List<Student> students = [];
+  HashSet<Student> students = HashSet<Student>();
 
-  while(true) {
+  while (true) {
     print("""
     Menu:
     1. Thêm sinh viên
     2. Sửa sinh viên
     3. Xóa sinh viên
-    4.Hiển thị danh sách sinh viên
+    4. Hiển thị danh sách sinh viên
     5. Thoát
     Chọn một thao tác: 
     """);
 
     String? choice = stdin.readLineSync();
 
-    switch(choice) {
+    switch (choice) {
       case '1':
         await addStudent(conn, students);
         break;
-
-
-    //Case 2 3
       case '2':
         await editStudent(conn, students);
         break;
       case '3':
         await deleteStudent(conn, students);
         break;
-
       case '4':
         await displayStudents(conn, students);
         break;
